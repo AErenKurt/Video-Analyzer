@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Detayları - Video Analiz Sistemi</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .analysis-section {
+            margin-top: 30px;
+        }
+        .transcript-container {
+            height: 300px;
+            overflow-y: auto;
+            padding: 15px;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+        }
+        .inappropriate-content {
+            background-color: #f8d7da;
+            border-left: 4px solid #dc3545;
+            padding: 10px 15px;
+            margin-bottom: 10px;
+        }
+        .video-info {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/">Video Analiz Sistemi</a>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div id="video-container">
+            <!-- Video bilgileri buraya yüklenecek -->
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 id="video-title">Video Yükleniyor...</h1>
+                <span id="video-status" class="badge bg-secondary">Durum</span>
+            </div>
+            
+            <div class="video-info">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Yüklenme Tarihi:</strong> <span id="upload-date">--</span></p>
+                        <p><strong>Dosya Yolu:</strong> <span id="file-path">--</span></p>
+                    </div>
+                    <div class="col-md-6 text-md-end">
+                        <button id="start-analysis-btn" class="btn btn-warning" style="display:none;">Analizi Başlat</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="analysis-results" class="analysis-section" style="display:none;">
+                <h2>Analiz Sonuçları</h2>
+                
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <h3>Uygunsuz İçerik Tespiti</h3>
+                        <div id="inappropriate-content-container">
+                            <p class="text-muted">Henüz tespit edilmiş uygunsuz içerik bulunmuyor.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h3>Video Transkripti</h3>
+                        <div id="transcript-container" class="transcript-container">
+                            <p class="text-muted">Transkript henüz oluşturulmadı.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // URL'den video ID'sini alma
+        const urlParams = new URLSearchParams(window.location.search);
+        const videoId = urlParams.get('id');
+        
+        if (!videoId) {
+            window.location.href = '/';
+        }
+        
+        // Video detaylarını API'den çekme
+        async function fetchVideoDetails() {
+            try {
+                const response = await fetch(`/api/videos/${videoId}/`);
+                const video = await response.json();
+                
+                // Video bilgilerini doldur
+                document.getElementById('video-title').textContent = video.title;
+                document.getElementById('upload-date').textContent = new Date(video.upload_date).toLocaleDateString('tr-TR');
+                document.getElementById('file-path').textContent = video.file_path;
+                
+                // Durum bilgisini güncelle
+                const statusBadge = document.getElementById('video-status');
+                switch(video.status) {
+                    case 'uploaded':
+                        statusBadge.textContent = 'Yüklendi';
+                        statusBadge.className = 'badge bg-secondary';
+                        document.getElementById('start-analysis-btn').style.display = 'block';
+                        break;
+                    case 'analyzing':
+                        statusBadge.textContent = 'Analiz Ediliyor';
+                        statusBadge.className = 'badge bg-warning';
+                        break;
+                    case 'completed':
+                        statusBadge.textContent = 'Analiz Tamamlandı';
+                        statusBadge.className = 'badge bg-success';
+                        fetchAnalysisResults();
+                        break;
+                    default:
+                        statusBadge.textContent = 'Bilinmiyor';
+                }
+                
+            } catch (error) {
+                console.error('Video detayları çekilirken hata oluştu:', error);
+                alert('Video bilgileri yüklenirken bir hata oluştu');
+            }
+        }
+        
+        // Analiz sonuçlarını çekme
+        async function fetchAnalysisResults() {
+            try {
+                const response = await fetch(`/api/analysis-results/`);
+                const allResults = await response.json();
+                
+                // Bu videoya ait analiz sonucunu bul
+                const result = allResults.find(r => r.video == videoId);
+                
+                if (result) {
+                    document.getElementById('analysis-results').style.display = 'block';
+                    
+                    // Uygunsuz içerik
+                    const inappropriateContainer = document.getElementById('inappropriate-content-container');
+                    if (result.inappropriate_content) {
+                        inappropriateContainer.innerHTML = '';
+                        const contentLines = result.inappropriate_content.split('\n');
+                        contentLines.forEach(line => {
+                            if (line.trim()) {
+                                inappropriateContainer.innerHTML += `
+                                    <div class="inappropriate-content">
+                                        <p class="mb-0">${line}</p>
+                                    </div>
+                                `;
+                            }
+                        });
+                    }
+                    
+                    // Transkript
+                    const transcriptContainer = document.getElementById('transcript-container');
+                    if (result.transcript) {
+                        transcriptContainer.innerHTML = result.transcript.replace(/\n/g, '<br>');
+                    }
+                }
+            } catch (error) {
+                console.error('Analiz sonuçları çekilirken hata oluştu:', error);
+            }
+        }
+        
+        // Analiz başlatma
+        document.getElementById('start-analysis-btn').addEventListener('click', async function() {
+            try {
+                const response = await fetch(`/api/videos/${videoId}/start_analysis/`, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    alert('Analiz başlatıldı!');
+                    location.reload();
+                } else {
+                    alert('Analiz başlatılırken bir hata oluştu');
+                }
+            } catch (error) {
+                console.error('Analiz başlatılırken hata oluştu:', error);
+                alert('Analiz başlatılırken bir hata oluştu');
+            }
+        });
+        
+        // Sayfa yüklendiğinde video detaylarını getir
+        document.addEventListener('DOMContentLoaded', fetchVideoDetails);
+    </script>
+</body>
+</html> 

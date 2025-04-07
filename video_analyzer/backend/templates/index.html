@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Analiz Sistemi</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .video-card {
+            margin-bottom: 20px;
+            transition: transform 0.3s;
+        }
+        .video-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .upload-area {
+            border: 2px dashed #ccc;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 30px;
+            border-radius: 10px;
+            background-color: #f8f9fa;
+        }
+        .upload-area:hover {
+            border-color: #0d6efd;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="#">Video Analiz Sistemi</a>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <h1 class="mb-4">Video Yükleme ve Analiz</h1>
+        
+        <!-- Video Yükleme Alanı -->
+        <div class="upload-area">
+            <h3>Video Yükle</h3>
+            <p>Analiz edilmesini istediğiniz videoyu buraya sürükleyin veya seçin</p>
+            <form id="upload-form">
+                <input type="file" id="video-upload" class="form-control mb-3" accept="video/*">
+                <input type="text" id="video-title" class="form-control mb-3" placeholder="Video başlığı">
+                <button type="submit" class="btn btn-primary">Yükle ve Analiz Et</button>
+            </form>
+        </div>
+        
+        <!-- Video Listesi -->
+        <h2 class="mb-3">Yüklenen Videolar</h2>
+        <div class="row" id="video-list">
+            <!-- Örnek Video Kartı -->
+            <div class="col-md-4">
+                <div class="card video-card">
+                    <div class="card-body">
+                        <h5 class="card-title">Örnek Video</h5>
+                        <p class="card-text">
+                            <span class="badge bg-success">Analiz Tamamlandı</span>
+                        </p>
+                        <p class="card-text">
+                            <small class="text-muted">Yüklenme: 18.04.2023</small>
+                        </p>
+                        <a href="video-detail.html?id=1" class="btn btn-outline-primary">Detayları Gör</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Video listesini API'den çekme
+        async function fetchVideos() {
+            try {
+                const response = await fetch('/api/videos/');
+                const videos = await response.json();
+                
+                const videoList = document.getElementById('video-list');
+                videoList.innerHTML = '';
+                
+                videos.forEach(video => {
+                    const statusBadge = getStatusBadge(video.status);
+                    const videoCard = `
+                        <div class="col-md-4">
+                            <div class="card video-card">
+                                <div class="card-body">
+                                    <h5 class="card-title">${video.title}</h5>
+                                    <p class="card-text">
+                                        ${statusBadge}
+                                    </p>
+                                    <p class="card-text">
+                                        <small class="text-muted">Yüklenme: ${new Date(video.upload_date).toLocaleDateString('tr-TR')}</small>
+                                    </p>
+                                    <a href="video-detail/?id=${video.id}" class="btn btn-outline-primary">Detayları Gör</a>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    videoList.innerHTML += videoCard;
+                });
+            } catch (error) {
+                console.error('Video listesi çekilirken hata oluştu:', error);
+            }
+        }
+        
+        // Video durumuna göre badge oluşturma
+        function getStatusBadge(status) {
+            switch(status) {
+                case 'uploaded':
+                    return '<span class="badge bg-secondary">Yüklendi</span>';
+                case 'analyzing':
+                    return '<span class="badge bg-warning">Analiz Ediliyor</span>';
+                case 'completed':
+                    return '<span class="badge bg-success">Analiz Tamamlandı</span>';
+                default:
+                    return '<span class="badge bg-secondary">Bilinmiyor</span>';
+            }
+        }
+        
+        // Form gönderimini izleme
+        document.getElementById('upload-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const videoFile = document.getElementById('video-upload').files[0];
+            const videoTitle = document.getElementById('video-title').value;
+            
+            if (!videoFile || !videoTitle) {
+                alert('Lütfen bir video seçin ve başlık girin');
+                return;
+            }
+            
+            // Gerçek uygulamada formData kullanılarak dosya yüklenebilir
+            // Burada sadece simüle ediyoruz
+            try {
+                const response = await fetch('/api/videos/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        title: videoTitle,
+                        file_path: `/videos/${videoFile.name}` // Gerçekte dosya yükleme işlemi ayrıca yapılmalı
+                    }),
+                });
+                
+                if (response.ok) {
+                    alert('Video başarıyla yüklendi!');
+                    fetchVideos(); // Listeyi yenile
+                    document.getElementById('upload-form').reset();
+                } else {
+                    alert('Video yüklenirken bir hata oluştu');
+                }
+            } catch (error) {
+                console.error('Video yüklenirken hata oluştu:', error);
+                alert('Video yüklenirken bir hata oluştu');
+            }
+        });
+        
+        // Sayfa yüklendiğinde videoları getir
+        document.addEventListener('DOMContentLoaded', fetchVideos);
+    </script>
+</body>
+</html> 

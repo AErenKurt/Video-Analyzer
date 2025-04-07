@@ -1,5 +1,5 @@
 """
-URL configuration for video_analyzer project.
+URL configuration for config project.
 
 The `urlpatterns` list routes URLs to views. For more information please see:
     https://docs.djangoproject.com/en/4.2/topics/http/urls/
@@ -15,11 +15,18 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path
-from main import views
+from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
+from analyzer.views import index, video_detail
 
 urlpatterns = [
+    path('', index, name='index'),
+    path('video-detail/', video_detail, name='video_detail'),
     path('admin/', admin.site.urls),
-    path('', views.index, name='index'),
-    path('upload/', views.upload_video, name='upload_video'),
+    path('api/', include('analyzer.urls')),
 ]
+
+# Serve media files in development
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
