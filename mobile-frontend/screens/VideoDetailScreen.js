@@ -16,6 +16,8 @@ const VideoDetailScreen = ({ route, navigation }) => {
   const [video, setVideo] = useState(null);
   const [analysisResult, setAnalysisResult] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [analysisStatus, setAnalysisStatus] = useState(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const fetchVideoDetails = async () => {
     try {
@@ -52,29 +54,37 @@ const VideoDetailScreen = ({ route, navigation }) => {
     }
   };
 
+  const fetchAnalysisStatus = async () => {
+    try {
+      const response = await fetch(`${API_URL}/videos/${videoId}/analysis_status/`);
+      const data = await response.json();
+      setAnalysisStatus(data);
+    } catch (error) {
+      console.error('Analiz durumu alınamadı:', error);
+    }
+  };
+
   const startAnalysis = async () => {
     try {
-      setLoading(true);
+      setIsAnalyzing(true);
       const response = await fetch(`${API_URL}/videos/${videoId}/start_analysis/`, {
         method: 'POST',
       });
-      
-      if (response.ok) {
-        Alert.alert('Başarılı', 'Analiz başlatıldı!');
-        fetchVideoDetails();
-      } else {
-        Alert.alert('Hata', 'Analiz başlatılırken bir hata oluştu');
-        setLoading(false);
-      }
+      const data = await response.json();
+      console.log('Analiz başlatıldı:', data);
+      // Analiz durumunu periyodik olarak kontrol et
+      const interval = setInterval(fetchAnalysisStatus, 2000);
+      return () => clearInterval(interval);
     } catch (error) {
-      console.error('Error starting analysis:', error);
-      Alert.alert('Hata', 'Analiz başlatılırken bir hata oluştu');
-      setLoading(false);
+      console.error('Analiz başlatılamadı:', error);
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
   useEffect(() => {
     fetchVideoDetails();
+    fetchAnalysisStatus();
   }, [videoId]);
 
   const getStatusInfo = (status) => {
@@ -134,8 +144,13 @@ const VideoDetailScreen = ({ route, navigation }) => {
         {video.status === 'uploaded' && (
           <TouchableOpacity 
             style={styles.analyzeButton} 
-            onPress={startAnalysis}>
-            <Text style={styles.analyzeButtonText}>Analizi Başlat</Text>
+            onPress={startAnalysis}
+            disabled={isAnalyzing}>
+            {isAnalyzing ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.analyzeButtonText}>Analizi Başlat</Text>
+            )}
           </TouchableOpacity>
         )}
       </View>
@@ -179,6 +194,17 @@ const VideoDetailScreen = ({ route, navigation }) => {
           <ActivityIndicator size="large" color="#ffc107" />
           <Text style={styles.analyzingText}>Video analiz ediliyor...</Text>
           <Text style={styles.analyzingSubtext}>Bu işlem birkaç dakika sürebilir</Text>
+        </View>
+      )}
+
+      {analysisStatus && (
+        <View style={styles.statusContainer}>
+          <Text style={styles.statusText}>
+            Durum: {analysisStatus.status}
+          </Text>
+          <Text style={styles.progressText}>
+            İlerleme: {Math.round(analysisStatus.progress * 100)}%
+          </Text>
         </View>
       )}
     </ScrollView>
@@ -340,6 +366,15 @@ const styles = StyleSheet.create({
   analyzingSubtext: {
     color: '#6c757d',
     fontSize: 14,
+  },
+  statusContainer: {
+    marginBottom: 20,
+    padding: 15,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+  },
+  progressText: {
+    fontSize: 16,
   },
 });
 

@@ -22,6 +22,44 @@ class Video(models.Model):
     def __str__(self):
         return self.title
 
+class InappropriateContent(models.Model):
+    video = models.ForeignKey(Video, on_delete=models.CASCADE)
+    content_type = models.CharField(max_length=50)  # text, image, audio
+    content = models.TextField()
+    confidence = models.FloatField()  # 0-1 arası güven skoru
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Inappropriate content in {self.video.title}"
+
+class Transcript(models.Model):
+    video = models.ForeignKey(Video, on_delete=models.CASCADE)
+    content = models.TextField()
+    language = models.CharField(max_length=10)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Transcript for {self.video.title}"
+
+class AnalysisJob(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('processing', 'Processing'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed')
+    ]
+    
+    video = models.ForeignKey(Video, on_delete=models.CASCADE)
+    job_id = models.CharField(max_length=36, unique=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    progress = models.FloatField(default=0.0)  # 0-1 arası ilerleme
+    error_message = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Analysis Job {self.job_id} for {self.video.title}"
+
 class AnalysisResult(models.Model):
     video = models.OneToOneField(Video, on_delete=models.CASCADE)
     inappropriate_content = models.TextField(blank=True)

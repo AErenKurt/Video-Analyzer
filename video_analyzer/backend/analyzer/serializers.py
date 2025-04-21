@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Video, AnalysisResult
+from .models import Video, AnalysisResult, InappropriateContent, Transcript, AnalysisJob
 
 class VideoSerializer(serializers.ModelSerializer):
     class Meta:
@@ -20,4 +20,23 @@ class AnalysisResultSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = AnalysisResult
-        fields = ['id', 'video', 'video_title', 'inappropriate_content', 'transcript', 'analysis_date'] 
+        fields = ['id', 'video', 'video_title', 'inappropriate_content', 'transcript', 'analysis_date']
+        read_only_fields = ['analysis_date']
+
+class InappropriateContentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InappropriateContent
+        fields = ['id', 'video', 'content_type', 'content', 'confidence', 'timestamp']
+        read_only_fields = ['timestamp']
+
+class TranscriptSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Transcript
+        fields = ['id', 'video', 'content', 'language', 'created_at']
+        read_only_fields = ['created_at']
+
+class AnalysisJobSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AnalysisJob
+        fields = ['id', 'video', 'job_id', 'status', 'progress', 'error_message', 'created_at', 'completed_at']
+        read_only_fields = ['job_id', 'created_at', 'completed_at'] 

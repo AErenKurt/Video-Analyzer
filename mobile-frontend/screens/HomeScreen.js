@@ -33,6 +33,9 @@ const HomeScreen = ({ navigation }) => {
 
   useEffect(() => {
     fetchVideos();
+    // Her 30 saniyede bir videoları güncelle
+    const interval = setInterval(fetchVideos, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const onRefresh = () => {

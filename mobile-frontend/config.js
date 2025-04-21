@@ -1,5 +1,6 @@
 // API bağlantı ayarları
 export const API_URL = 'http://localhost:8000/api';
+export const WS_URL = 'ws://localhost:8000/ws';
 
 // Uygulama sürümü
 export const APP_VERSION = '1.0.0';

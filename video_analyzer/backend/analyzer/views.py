@@ -11,19 +11,19 @@ from django.conf import settings
 
 # HTML View functions
 def index(request):
-    return render(request, 'index.html')
+    videos = Video.objects.all()
+    return render(request, 'index.html', {'videos': videos})
 
-def video_detail(request, video_id=None):
-    return render(request, 'video-detail.html')
+def video_detail(request, video_id):
+    video = get_object_or_404(Video, id=video_id)
+    return render(request, 'video-detail.html', {'video': video})
 
 # API ViewSets
 class VideoViewSet(viewsets.ModelViewSet):
-    queryset = Video.objects.all().order_by('-upload_date')
+    queryset = Video.objects.all()
     serializer_class = VideoSerializer
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filter_backends = [DjangoFilterBackend]
     filterset_fields = ['status']
-    search_fields = ['title']
-    ordering_fields = ['upload_date', 'title']
 
     @action(detail=True, methods=['post'])
     def start_analysis(self, request, pk=None):
@@ -42,9 +42,6 @@ class VideoViewSet(viewsets.ModelViewSet):
             status='pending',
             job_id=str(uuid.uuid4())
         )
-        
-        # Video dosyasının tam yolunu al
-        video_path = os.path.join(settings.MEDIA_ROOT, str(video.video_file))
         
         # TODO: Burada gerçek analiz işlemi başlatılacak
         # Şimdilik sadece iş durumunu güncelle
