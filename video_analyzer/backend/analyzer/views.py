@@ -1,10 +1,13 @@
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
-from .models import Video, AnalysisResult
-from .serializers import VideoSerializer, AnalysisResultSerializer
+from .models import Video, AnalysisResult, InappropriateContent, Transcript, AnalysisJob
+from .serializers import VideoSerializer, AnalysisResultSerializer, InappropriateContentSerializer, TranscriptSerializer, AnalysisJobSerializer
+import uuid
+import os
+from django.conf import settings
 
 # HTML View functions
 def index(request):
@@ -25,25 +28,63 @@ class VideoViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def start_analysis(self, request, pk=None):
         video = self.get_object()
-        video.status = 'analyzing'
-        video.save()
         
-        # Burada video analizi başlatılacak
-        # Şimdilik sadece bir sonuç objesi oluşturalım
-        result, created = AnalysisResult.objects.get_or_create(
+        # Video dosyasının varlığını kontrol et
+        if not video.video_file:
+            return Response(
+                {"error": "Video dosyası bulunamadı"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Yeni bir analiz işi oluştur
+        analysis_job = AnalysisJob.objects.create(
             video=video,
-            defaults={
-                'inappropriate_content': 'Analiz henüz tamamlanmadı.',
-                'transcript': 'Transkript henüz oluşturulmadı.'
-            }
+            status='pending',
+            job_id=str(uuid.uuid4())
         )
         
-        # Gerçek uygulamada burada bir Celery görevi başlatılacak
+        # Video dosyasının tam yolunu al
+        video_path = os.path.join(settings.MEDIA_ROOT, str(video.video_file))
         
-        return Response({'status': 'analysis started'})
+        # TODO: Burada gerçek analiz işlemi başlatılacak
+        # Şimdilik sadece iş durumunu güncelle
+        analysis_job.status = 'processing'
+        analysis_job.save()
+        
+        return Response(
+            {
+                "message": "Video analizi başlatıldı",
+                "job_id": analysis_job.job_id
+            },
+            status=status.HTTP_202_ACCEPTED
+        )
+
+    @action(detail=True, methods=['get'])
+    def analysis_status(self, request, pk=None):
+        video = self.get_object()
+        analysis_job = get_object_or_404(AnalysisJob, video=video)
+        
+        return Response({
+            "status": analysis_job.status,
+            "progress": analysis_job.progress,
+            "created_at": analysis_job.created_at,
+            "completed_at": analysis_job.completed_at
+        })
 
 class AnalysisResultViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = AnalysisResult.objects.all()
     serializer_class = AnalysisResultSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['video']
+
+class InappropriateContentViewSet(viewsets.ModelViewSet):
+    queryset = InappropriateContent.objects.all()
+    serializer_class = InappropriateContentSerializer
+
+class TranscriptViewSet(viewsets.ModelViewSet):
+    queryset = Transcript.objects.all()
+    serializer_class = TranscriptSerializer
+
+class AnalysisJobViewSet(viewsets.ModelViewSet):
+    queryset = AnalysisJob.objects.all()
+    serializer_class = AnalysisJobSerializer
