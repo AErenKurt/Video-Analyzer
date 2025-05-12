@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import HomeScreen from './screens/HomeScreen';
 import VideoDetailScreen from './screens/VideoDetailScreen';
+import VideoUploadScreen from './screens/VideoUploadScreen';
 import { API_URL } from './config';
 
 const Stack = createStackNavigator();
@@ -59,6 +60,13 @@ const AppNavigator = () => {
           component={HomeScreen}
           options={{
             title: 'Video Analiz Sistemi',
+          }}
+        />
+        <Stack.Screen 
+          name="VideoUpload" 
+          component={VideoUploadScreen}
+          options={{
+            title: 'Video Yükle',
           }}
         />
         <Stack.Screen 

@@ -100,6 +100,12 @@ const HomeScreen = ({ navigation }) => {
           </View>
         }
       />
+      <TouchableOpacity
+        style={styles.uploadButton}
+        onPress={() => navigation.navigate('VideoUpload')}
+      >
+        <Text style={styles.uploadButtonText}>+ Yeni Video Yükle</Text>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -111,6 +117,7 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     padding: 16,
+    paddingBottom: 80, // Upload button için alan bırak
   },
   videoCard: {
     backgroundColor: '#fff',
@@ -163,6 +170,26 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 16,
     color: '#6c757d',
+  },
+  uploadButton: {
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    right: 20,
+    backgroundColor: '#4a6da7',
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  uploadButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 
