@@ -1,0 +1,3 @@
+[submodule "VideoAnalyzerMobile"]
+	path = VideoAnalyzerMobile
+	url = ./VideoAnalyzerMobile
