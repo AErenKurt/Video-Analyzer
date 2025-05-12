@@ -6,71 +6,112 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  TextInput,
 } from 'react-native';
-import * as DocumentPicker from 'react-native-document-picker';
-import { useNavigation } from '@react-navigation/native';
+import * as DocumentPicker from 'expo-document-picker';
+import { API_URL } from '../config';
 
-const VideoUploadScreen = () => {
+const VideoUploadScreen = ({ navigation }) => {
   const [uploading, setUploading] = useState(false);
-  const navigation = useNavigation();
+  const [title, setTitle] = useState('');
+  const [selectedVideo, setSelectedVideo] = useState(null);
 
   const pickVideo = async () => {
     try {
-      const result = await DocumentPicker.pick({
-        type: [DocumentPicker.types.video],
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'video/*',
+        copyToCacheDirectory: true,
       });
 
-      // Video seçildi, yükleme işlemini başlat
-      setUploading(true);
-      
-      // TODO: Backend'e video yükleme işlemi burada yapılacak
-      // Şimdilik simüle ediyoruz
-      setTimeout(() => {
-        setUploading(false);
-        Alert.alert(
-          'Başarılı',
-          'Video başarıyla yüklendi ve analiz ediliyor.',
-          [
-            {
-              text: 'Tamam',
-              onPress: () => navigation.navigate('VideoDetail', { videoId: '123' }),
-            },
-          ]
-        );
-      }, 2000);
-
-    } catch (err) {
-      if (DocumentPicker.isCancel(err)) {
-        // Kullanıcı iptal etti
-        return;
+      if (result.type === 'success') {
+        setSelectedVideo(result);
       }
-      Alert.alert('Hata', 'Video seçilirken bir hata oluştu.');
+    } catch (error) {
+      Alert.alert('Hata', 'Video seçilirken bir hata oluştu');
+    }
+  };
+
+  const uploadVideo = async () => {
+    if (!selectedVideo) {
+      Alert.alert('Uyarı', 'Lütfen bir video seçin');
+      return;
+    }
+
+    setUploading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', {
+        uri: selectedVideo.uri,
+        name: selectedVideo.name,
+        type: selectedVideo.mimeType,
+      });
+      
+      if (title) {
+        formData.append('title', title);
+      }
+
+      const response = await fetch(`${API_URL}/upload-video/`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        Alert.alert('Başarılı', 'Video başarıyla yüklendi', [
+          {
+            text: 'Tamam',
+            onPress: () => navigation.navigate('Home'),
+          },
+        ]);
+      } else {
+        throw new Error(data.detail || 'Video yüklenirken bir hata oluştu');
+      }
+    } catch (error) {
+      Alert.alert('Hata', error.message);
+    } finally {
+      setUploading(false);
     }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Video Yükle</Text>
-      <Text style={styles.subtitle}>
-        Analiz etmek istediğiniz videoyu seçin
-      </Text>
+      <TextInput
+        style={styles.input}
+        placeholder="Video başlığı (opsiyonel)"
+        value={title}
+        onChangeText={setTitle}
+      />
 
       <TouchableOpacity
-        style={styles.uploadButton}
+        style={styles.pickButton}
         onPress={pickVideo}
         disabled={uploading}
       >
-        {uploading ? (
-          <ActivityIndicator size="large" color="#fff" />
-        ) : (
-          <Text style={styles.uploadButtonText}>Video Seç</Text>
-        )}
+        <Text style={styles.buttonText}>
+          {selectedVideo ? 'Video Seçildi' : 'Video Seç'}
+        </Text>
       </TouchableOpacity>
 
-      <Text style={styles.infoText}>
-        Desteklenen formatlar: MP4, MOV, AVI{'\n'}
-        Maksimum dosya boyutu: 100MB
-      </Text>
+      {selectedVideo && (
+        <Text style={styles.fileName}>{selectedVideo.name}</Text>
+      )}
+
+      <TouchableOpacity
+        style={[styles.uploadButton, uploading && styles.disabledButton]}
+        onPress={uploadVideo}
+        disabled={uploading || !selectedVideo}
+      >
+        {uploading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.buttonText}>Yükle</Text>
+        )}
+      </TouchableOpacity>
     </View>
   );
 };
@@ -79,38 +120,41 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
+    backgroundColor: '#f5f5f5',
+  },
+  input: {
     backgroundColor: '#fff',
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  pickButton: {
+    backgroundColor: '#4a6da7',
+    padding: 15,
+    borderRadius: 8,
     alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    color: '#333',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 30,
-    textAlign: 'center',
-  },
-  uploadButton: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 30,
-    paddingVertical: 15,
-    borderRadius: 10,
     marginBottom: 20,
   },
-  uploadButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
+  uploadButton: {
+    backgroundColor: '#28a745',
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
   },
-  infoText: {
+  disabledButton: {
+    backgroundColor: '#6c757d',
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  fileName: {
+    marginBottom: 20,
     color: '#666',
     textAlign: 'center',
-    lineHeight: 20,
   },
 });
 
