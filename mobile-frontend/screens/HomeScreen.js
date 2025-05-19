@@ -11,6 +11,8 @@ import {
   Image,
   Modal,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { API_URL, COLORS } from '../config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -73,7 +75,13 @@ const HomeScreen = ({ navigation }) => {
   };
 
   const handleLogin = async () => {
+    if (!username || !password) {
+      Alert.alert('Hata', 'Lütfen tüm alanları doldurun');
+      return;
+    }
+
     try {
+      setLoading(true);
       const response = await fetch(`${API_URL}/token`, {
         method: 'POST',
         headers: {
@@ -93,11 +101,24 @@ const HomeScreen = ({ navigation }) => {
       fetchVideos(data.access_token);
     } catch (error) {
       Alert.alert('Hata', error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleRegister = async () => {
+    if (!username || !email || !password) {
+      Alert.alert('Hata', 'Lütfen tüm alanları doldurun');
+      return;
+    }
+
+    if (password.length < 6) {
+      Alert.alert('Hata', 'Şifre en az 6 karakter olmalıdır');
+      return;
+    }
+
     try {
+      setLoading(true);
       const response = await fetch(`${API_URL}/users/`, {
         method: 'POST',
         headers: {
@@ -111,7 +132,8 @@ const HomeScreen = ({ navigation }) => {
       });
 
       if (!response.ok) {
-        throw new Error('Kayıt başarısız');
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Kayıt başarısız');
       }
 
       Alert.alert('Başarılı', 'Kayıt başarılı. Şimdi giriş yapabilirsiniz.');
@@ -119,6 +141,8 @@ const HomeScreen = ({ navigation }) => {
       setLoginModalVisible(true);
     } catch (error) {
       Alert.alert('Hata', error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -176,136 +200,148 @@ const HomeScreen = ({ navigation }) => {
     );
   };
 
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-        <Text style={styles.loadingText}>Videolar Yükleniyor...</Text>
-      </View>
-    );
-  }
-
-  if (!token) {
-    return (
-      <View style={styles.authContainer}>
-        <Text style={styles.welcomeText}>Video Analiz Sistemine Hoş Geldiniz</Text>
-        <TouchableOpacity
-          style={styles.authButton}
-          onPress={() => setLoginModalVisible(true)}>
-          <Text style={styles.authButtonText}>Giriş Yap</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.authButton, styles.registerButton]}
-          onPress={() => setRegisterModalVisible(true)}>
-          <Text style={styles.authButtonText}>Kayıt Ol</Text>
-        </TouchableOpacity>
-
-        <Modal
-          animationType="slide"
-          transparent={true}
-          visible={loginModalVisible}
-          onRequestClose={() => setLoginModalVisible(false)}>
-          <View style={styles.modalContainer}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Giriş Yap</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Kullanıcı Adı"
-                value={username}
-                onChangeText={setUsername}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Şifre"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-              />
-              <TouchableOpacity style={styles.modalButton} onPress={handleLogin}>
-                <Text style={styles.modalButtonText}>Giriş Yap</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalCloseButton}
-                onPress={() => setLoginModalVisible(false)}>
-                <Text style={styles.modalCloseButtonText}>İptal</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-
-        <Modal
-          animationType="slide"
-          transparent={true}
-          visible={registerModalVisible}
-          onRequestClose={() => setRegisterModalVisible(false)}>
-          <View style={styles.modalContainer}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Kayıt Ol</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Kullanıcı Adı"
-                value={username}
-                onChangeText={setUsername}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="E-posta"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Şifre"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-              />
-              <TouchableOpacity style={styles.modalButton} onPress={handleRegister}>
-                <Text style={styles.modalButtonText}>Kayıt Ol</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalCloseButton}
-                onPress={() => setRegisterModalVisible(false)}>
-                <Text style={styles.modalCloseButtonText}>İptal</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-      </View>
-    );
-  }
-
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Video Analiz Sistemi</Text>
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutButtonText}>Çıkış Yap</Text>
-        </TouchableOpacity>
-      </View>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.container}>
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.loadingText}>Yükleniyor...</Text>
+        </View>
+      ) : !token ? (
+        <View style={styles.authContainer}>
+          <Text style={styles.welcomeText}>Video Analiz Sistemine Hoş Geldiniz</Text>
+          <TouchableOpacity
+            style={styles.authButton}
+            onPress={() => setLoginModalVisible(true)}>
+            <Text style={styles.authButtonText}>Giriş Yap</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.authButton, styles.registerButton]}
+            onPress={() => setRegisterModalVisible(true)}>
+            <Text style={styles.authButtonText}>Kayıt Ol</Text>
+          </TouchableOpacity>
 
-      <FlatList
-        data={videos}
-        renderItem={renderVideoItem}
-        keyExtractor={(item) => item.id.toString()}
-        contentContainerStyle={styles.listContainer}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>Henüz hiç video yüklenmemiş</Text>
+          <Modal
+            animationType="slide"
+            transparent={true}
+            visible={loginModalVisible}
+            onRequestClose={() => setLoginModalVisible(false)}>
+            <View style={styles.modalContainer}>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>Giriş Yap</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Kullanıcı Adı"
+                  value={username}
+                  onChangeText={setUsername}
+                  autoCapitalize="none"
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Şifre"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                />
+                <TouchableOpacity 
+                  style={[styles.modalButton, loading && styles.disabledButton]} 
+                  onPress={handleLogin}
+                  disabled={loading}>
+                  {loading ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={styles.modalButtonText}>Giriş Yap</Text>
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.modalCloseButton}
+                  onPress={() => setLoginModalVisible(false)}>
+                  <Text style={styles.modalCloseButtonText}>İptal</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
+
+          <Modal
+            animationType="slide"
+            transparent={true}
+            visible={registerModalVisible}
+            onRequestClose={() => setRegisterModalVisible(false)}>
+            <View style={styles.modalContainer}>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>Kayıt Ol</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Kullanıcı Adı"
+                  value={username}
+                  onChangeText={setUsername}
+                  autoCapitalize="none"
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="E-posta"
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Şifre"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                />
+                <TouchableOpacity 
+                  style={[styles.modalButton, loading && styles.disabledButton]} 
+                  onPress={handleRegister}
+                  disabled={loading}>
+                  {loading ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={styles.modalButtonText}>Kayıt Ol</Text>
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.modalCloseButton}
+                  onPress={() => setRegisterModalVisible(false)}>
+                  <Text style={styles.modalCloseButtonText}>İptal</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
+        </View>
+      ) : (
+        <View style={styles.container}>
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>Videolarım</Text>
+            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+              <Text style={styles.logoutButtonText}>Çıkış Yap</Text>
+            </TouchableOpacity>
           </View>
-        }
-      />
-      <TouchableOpacity
-        style={styles.uploadButton}
-        onPress={() => navigation.navigate('VideoUpload')}
-      >
-        <Text style={styles.uploadButtonText}>+ Yeni Video Yükle</Text>
-      </TouchableOpacity>
-    </View>
+          <FlatList
+            data={videos}
+            renderItem={renderVideoItem}
+            keyExtractor={(item) => item.id.toString()}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>Henüz video yok</Text>
+                <TouchableOpacity
+                  style={styles.uploadButton}
+                  onPress={() => navigation.navigate('VideoUpload')}>
+                  <Text style={styles.uploadButtonText}>Video Yükle</Text>
+                </TouchableOpacity>
+              </View>
+            }
+          />
+        </View>
+      )}
+    </KeyboardAvoidingView>
   );
 };
 
@@ -331,7 +367,7 @@ const styles = StyleSheet.create({
   },
   logoutButtonText: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 16,
   },
   listContainer: {
     padding: 16,
@@ -393,27 +429,20 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
   },
   emptyContainer: {
-    padding: 20,
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
   },
   emptyText: {
-    fontSize: 16,
-    color: '#6c757d',
+    fontSize: 18,
+    color: COLORS.secondary,
+    marginBottom: 16,
   },
   uploadButton: {
-    position: 'absolute',
-    bottom: 20,
-    left: 20,
-    right: 20,
     backgroundColor: COLORS.primary,
-    padding: 15,
+    padding: 12,
     borderRadius: 8,
-    alignItems: 'center',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
   },
   uploadButtonText: {
     color: '#fff',
@@ -497,6 +526,9 @@ const styles = StyleSheet.create({
   modalCloseButtonText: {
     color: COLORS.secondary,
     fontSize: 16,
+  },
+  disabledButton: {
+    opacity: 0.7,
   },
 });
 

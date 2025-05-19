@@ -6,13 +6,17 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  TouchableOpacity,
+  RefreshControl,
+  Image,
 } from 'react-native';
-import { API_URL } from '../config';
+import { API_URL, COLORS } from '../config';
 
-const VideoDetailScreen = ({ route }) => {
+const VideoDetailScreen = ({ route, navigation }) => {
   const { videoId } = route.params;
   const [video, setVideo] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchVideoDetails();
@@ -30,13 +34,59 @@ const VideoDetailScreen = ({ route }) => {
       Alert.alert('Hata', error.message);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
-  if (loading) {
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchVideoDetails();
+  };
+
+  const handleDelete = async () => {
+    Alert.alert(
+      'Video Sil',
+      'Bu videoyu silmek istediğinizden emin misiniz?',
+      [
+        {
+          text: 'İptal',
+          style: 'cancel',
+        },
+        {
+          text: 'Sil',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setLoading(true);
+              const response = await fetch(`${API_URL}/videos/${videoId}`, {
+                method: 'DELETE',
+              });
+
+              if (!response.ok) {
+                throw new Error('Video silinemedi');
+              }
+
+              Alert.alert('Başarılı', 'Video başarıyla silindi', [
+                {
+                  text: 'Tamam',
+                  onPress: () => navigation.goBack(),
+                },
+              ]);
+            } catch (error) {
+              Alert.alert('Hata', error.message);
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  if (loading && !refreshing) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#4a6da7" />
+        <ActivityIndicator size="large" color={COLORS.primary} />
         <Text style={styles.loadingText}>Video detayları yükleniyor...</Text>
       </View>
     );
@@ -46,6 +96,11 @@ const VideoDetailScreen = ({ route }) => {
     return (
       <View style={styles.errorContainer}>
         <Text style={styles.errorText}>Video bulunamadı</Text>
+        <TouchableOpacity
+          style={styles.retryButton}
+          onPress={fetchVideoDetails}>
+          <Text style={styles.retryButtonText}>Tekrar Dene</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -55,13 +110,29 @@ const VideoDetailScreen = ({ route }) => {
     : null;
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }>
       <View style={styles.header}>
         <Text style={styles.title}>{video.title}</Text>
-        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(video.status) }]}>
+        <View
+          style={[
+            styles.statusBadge,
+            { backgroundColor: getStatusColor(video.status) },
+          ]}>
           <Text style={styles.statusText}>{getStatusText(video.status)}</Text>
         </View>
       </View>
+
+      {video.thumbnail_path && (
+        <Image
+          source={{ uri: `${API_URL}/${video.thumbnail_path}` }}
+          style={styles.thumbnail}
+          resizeMode="cover"
+        />
+      )}
 
       <Text style={styles.dateText}>
         Yüklenme Tarihi: {new Date(video.upload_date).toLocaleDateString('tr-TR')}
@@ -70,7 +141,7 @@ const VideoDetailScreen = ({ route }) => {
       {analysisResults && (
         <View style={styles.analysisContainer}>
           <Text style={styles.sectionTitle}>Analiz Sonuçları</Text>
-          
+
           <View style={styles.resultItem}>
             <Text style={styles.resultLabel}>Süre:</Text>
             <Text style={styles.resultValue}>
@@ -100,6 +171,10 @@ const VideoDetailScreen = ({ route }) => {
           </View>
         </View>
       )}
+
+      <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
+        <Text style={styles.deleteButtonText}>Videoyu Sil</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 };
@@ -107,13 +182,13 @@ const VideoDetailScreen = ({ route }) => {
 const getStatusColor = (status) => {
   switch (status) {
     case 'uploaded':
-      return '#6c757d';
+      return COLORS.secondary;
     case 'analyzing':
-      return '#ffc107';
+      return COLORS.warning;
     case 'completed':
-      return '#28a745';
+      return COLORS.success;
     default:
-      return '#6c757d';
+      return COLORS.secondary;
   }
 };
 
@@ -149,16 +224,28 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: '#4a6da7',
+    color: COLORS.primary,
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
   },
   errorText: {
     fontSize: 16,
-    color: '#dc3545',
+    color: COLORS.error,
+    marginBottom: 16,
+  },
+  retryButton: {
+    backgroundColor: COLORS.primary,
+    padding: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   header: {
     padding: 20,
@@ -182,6 +269,11 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 12,
     fontWeight: 'bold',
+  },
+  thumbnail: {
+    width: '100%',
+    height: 200,
+    backgroundColor: '#ddd',
   },
   dateText: {
     padding: 20,
@@ -220,6 +312,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#333',
+  },
+  deleteButton: {
+    backgroundColor: COLORS.error,
+    margin: 20,
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  deleteButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 
